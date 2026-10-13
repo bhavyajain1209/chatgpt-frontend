@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT Clone</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        chatgpt: {
+                            dark: '#212121',
+                            sidebar: '#171717',
+                            hover: '#2A2A2A',
+                            border: '#2F2F2F',
+                            input: '#2F2F2F',
+                            text: '#ECECEC'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-chatgpt-dark text-chatgpt-text font-sans h-screen flex overflow-hidden">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" class="w-64 bg-chatgpt-sidebar flex flex-col h-full border-r border-chatgpt-border transition-all duration-300 z-20 md:translate-x-0 -translate-x-full fixed md:relative">
+        <!-- New Chat Button -->
+        <div class="p-3">
+            <button onclick="createNewChat()" class="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-chatgpt-border hover:bg-chatgpt-hover transition text-sm font-medium">
+                <span class="flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    New chat
+                </span>
+                <i data-lucide="square-pen" class="w-4 h-4 text-gray-400"></i>
+            </button>
+        </div>
+
+        <!-- Chat History List -->
+        <div id="chat-list" class="flex-1 overflow-y-auto px-3 py-2 space-y-1 text-sm">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Sidebar Footer / Clear History -->
+        <div class="p-3 border-t border-chatgpt-border">
+            <button onclick="clearAllChats()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-chatgpt-hover transition text-sm text-red-400 hover:text-red-300">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Clear conversations
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CHAT AREA -->
+    <main class="flex-1 flex flex-col h-full relative bg-chatgpt-dark">
+        <!-- Top Navbar -->
+        <header class="flex items-center justify-between px-4 h-14 border-b border-chatgpt-border bg-chatgpt-dark z-10">
+            <button onclick="toggleSidebar()" class="p-2 rounded-lg hover:bg-chatgpt-hover transition text-gray-300">
+                <i data-lucide="panel-left" class="w-5 h-5"></i>
+            </button>
+            <div class="font-medium text-sm">ChatGPT <span class="text-xs bg-gray-700 px-1.5 py-0.5 rounded text-gray-300">3.5</span></div>
+            <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center font-bold text-sm text-white">
+                U
+            </div>
+        </header>
+
+        <!-- Chat Messages Container -->
+        <div id="chat-container" class="flex-1 overflow-y-auto px-4 py-6 space-y-6 flex flex-col items-center">
+            <!-- Welcome Screen (Shown if no messages) -->
+            <div id="welcome-screen" class="my-auto text-center max-w-lg px-4">
+                <div class="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-white shadow-lg">
+                    <i data-lucide="zap" class="w-6 h-6"></i>
+                </div>
+                <h2 class="text-2xl font-semibold mb-2">How can I help you today?</h2>
+                <p class="text-gray-400 text-sm mb-6">Choose a suggestion or type your query below.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                    <button onclick="sendQuickPrompt('Help me write a professional email')" class="p-3 rounded-xl border border-chatgpt-border hover:bg-chatgpt-hover transition text-xs text-gray-300">
+                        <div class="font-medium text-white mb-0.5">Write an email</div>
+                        <div class="text-gray-400">Help me write a professional email</div>
+                    </button>
+                    <button onclick="sendQuickPrompt('Explain quantum computing in simple terms')" class="p-3 rounded-xl border border-chatgpt-border hover:bg-chatgpt-hover transition text-xs text-gray-300">
+                        <div class="font-medium text-white mb-0.5">Explain concepts</div>
+                        <div class="text-gray-400">Quantum computing in simple terms</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message list renders here -->
+            <div id="messages-list" class="w-full max-w-3xl space-y-6 pb-20"></div>
+        </div>
+
+        <!-- Input Form Footer -->
+        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-chatgpt-dark via-chatgpt-dark to-transparent pt-6 pb-4 px-4 flex justify-center">
+            <div class="w-full max-w-3xl">
+                <form id="chat-form" onsubmit="handleSendMessage(event)" class="relative bg-chatgpt-input border border-chatgpt-border rounded-2xl shadow-xl flex items-end p-3 focus-within:border-gray-500 transition">
+                    <textarea 
+                        id="user-input" 
+                        rows="1" 
+                        placeholder="Message ChatGPT..." 
+                        class="w-full bg-transparent text-chatgpt-text placeholder-gray-400 focus:outline-none resize-none max-h-40 text-sm leading-relaxed pr-10"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button type="submit" id="send-btn" class="absolute right-3 bottom-3 p-1.5 bg-white text-black rounded-lg hover:bg-gray-200 transition disabled:opacity-40 disabled:hover:bg-white" disabled>
+                        <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                    </button>
+                </form>
+                <div class="text-center text-[11px] text-gray-500 mt-2">
+                    ChatGPT can make mistakes. Check important info.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // App State
+        let chats = JSON.parse(localStorage.getItem('chatgpt_chats')) || [];
+        let currentChatId = localStorage.getItem('chatgpt_current_id') || null;
+
+        // DOM Elements
+        const chatListEl = document.getElementById('chat-list');
+        const messagesListEl = document.getElementById('messages-list');
+        const welcomeScreenEl = document.getElementById('welcome-screen');
+        const userInputEl = document.getElementById('user-input');
+        const sendBtnEl = document.getElementById('send-btn');
+
+        // Initialize App
+        function init() {
+            if (chats.length === 0) {
+                createNewChat(false);
+            } else if (!currentChatId || !chats.find(c => c.id === currentChatId)) {
+                currentChatId = chats[0].id;
+            }
+            renderSidebar();
+            renderActiveChat();
+        }
+
+        // Create New Chat
+        function createNewChat(render = true) {
+            const newChat = {
+                id: 'chat_' + Date.now(),
+                title: 'New chat',
+                messages: []
+            };
+            chats.unshift(newChat);
+            currentChatId = newChat.id;
+            saveState();
+            if (render) {
+                renderSidebar();
+                renderActiveChat();
+            }
+        }
+
+        // Switch Chat Session
+        function switchChat(id) {
+            currentChatId = id;
+            saveState();
+            renderSidebar();
+            renderActiveChat();
+        }
+
+        // Delete Individual Chat
+        function deleteChat(event, id) {
+            event.stopPropagation();
+            chats = chats.filter(c => c.id !== id);
+            if (chats.length === 0) {
+                createNewChat(false);
+            } else if (currentChatId === id) {
+                currentChatId = chats[0].id;
+            }
+            saveState();
+            renderSidebar();
+            renderActiveChat();
+        }
+
+        // Clear All Conversations
+        function clearAllChats() {
+            if (confirm("Are you sure you want to delete all chats?")) {
+                chats = [];
+                createNewChat(false);
+            }
+        }
+
+        // Save to LocalStorage
+        function saveState() {
+            localStorage.setItem('chatgpt_chats', JSON.stringify(chats));
+            localStorage.setItem('chatgpt_current_id', currentChatId);
+        }
+
+        // Render Sidebar List
+        function renderSidebar() {
+            chatListEl.innerHTML = '';
+            chats.forEach(chat => {
+                const isActive = chat.id === currentChatId;
+                const div = document.createElement('div');
+                div.className = `group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition ${isActive ? 'bg-chatgpt-hover text-white' : 'text-gray-400 hover:bg-chatgpt-hover hover:text-gray-200'}`;
+                div.onclick = () => switchChat(chat.id);
+                
+                div.innerHTML = `
+                    <span class="truncate text-xs flex-1 pr-2">${escapeHTML(chat.title)}</span>
+                    <button onclick="deleteChat(event, '${chat.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition">
+                        <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                    </button>
+                `;
+                chatListEl.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        // Render Active Chat Messages
+        function renderActiveChat() {
+            messagesListEl.innerHTML = '';
+            const activeChat = chats.find(c => c.id === currentChatId);
+
+            if (!activeChat || activeChat.messages.length === 0) {
+                welcomeScreenEl.style.display = 'block';
+                return;
+            }
+
+            welcomeScreenEl.style.display = 'none';
+            activeChat.messages.forEach(msg => {
+                appendMessageNode(msg.role, msg.content);
+            });
+            scrollToBottom();
+        }
+
+        // Append Single Message HTML
+        function appendMessageNode(role, content) {
+            const isUser = role === 'user';
+            const wrapper = document.createElement('div');
+            wrapper.className = `w-full flex ${isUser ? 'justify-end' : 'justify-start'}`;
+
+            wrapper.innerHTML = `
+                <div class="flex gap-3 max-w-[85%] sm:max-w-[75%] ${isUser ? 'flex-row-reverse' : 'flex-row'}">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-gradient-to-tr from-purple-500 to-indigo-500 text-white font-bold text-xs' : 'bg-emerald-600 text-white'}">
+                        ${isUser ? 'U' : '<i data-lucide="zap" class="w-4 h-4"></i>'}
+                    </div>
+                    <div class="space-y-1 text-sm leading-relaxed overflow-hidden">
+                        <div class="font-semibold text-xs text-gray-400 ${isUser ? 'text-right' : 'text-left'}">${isUser ? 'You' : 'ChatGPT'}</div>
+                        <div class="p-3 rounded-2xl ${isUser ? 'bg-[#2F2F2F] text-white rounded-tr-none' : 'bg-transparent text-chatgpt-text'}">
+                            ${formatMessageContent(content)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            messagesListEl.appendChild(wrapper);
+            lucide.createIcons();
+        }
+
+        // Format Message Content (Basic line breaks and code block styling)
+        function formatMessageContent(text) {
+            return escapeHTML(text).replace(/\n/g, '<br>');
+        }
+
+        // Handle Send Message
+        function handleSendMessage(e) {
+            e.preventDefault();
+            const text = userInputEl.value.trim();
+            if (!text) return;
+
+            // Reset Input height & button state
+            userInputEl.value = '';
+            userInputEl.style.height = 'auto';
+            checkInput();
+
+            const activeChat = chats.find(c => c.id === currentChatId);
+            if (activeChat.messages.length === 0) {
+                activeChat.title = text.length > 25 ? text.substring(0, 25) + '...' : text;
+            }
+
+            // Push User Message
+            activeChat.messages.push({ role: 'user', content: text });
+            appendMessageNode('user', text);
+            saveState();
+            renderSidebar();
+            scrollToBottom();
+
+            // Simulate AI Response streaming
+            setTimeout(() => {
+                const aiReply = generateSimulatedAIResponse(text);
+                activeChat.messages.push({ role: 'assistant', content: aiReply });
+                appendMessageNode('assistant', aiReply);
+                saveState();
+                scrollToBottom();
+            }, 600);
+        }
+
+        // Quick Prompt helper
+        function sendQuickPrompt(promptText) {
+            userInputEl.value = promptText;
+            autoResize(userInputEl);
+            checkInput();
+            document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+
+        // Simulated AI Response Logic
+        function generateSimulatedAIResponse(query) {
+            const lower = query.toLowerCase();
+            if (lower.includes('email')) {
+                return "Subject: Inquiry Regarding Project Updates\n\nDear Team,\n\nI hope this email finds you well. I am writing to request a brief update on our ongoing deliverables. Please let me know your availability for a quick sync this week.\n\nBest regards,\n[Your Name]";
+            } else if (lower.includes('quantum')) {
+                return "Quantum computing is a rapidly-emerging technology that harnesses the laws of quantum mechanics to solve problems too complex for classical computers. While normal computers use bits (0 or 1), quantum computers use qubits, which can exist in multiple states simultaneously (superposition).";
+            } else {
+                return `That's an interesting question about "${query}". As a simulated ChatGPT interface built in a single HTML file, I can help you test layouts, write code snippets, brainstorm ideas, or manage your simulated conversations smoothly! How else can I assist you today?`;
+            }
+        }
+
+        // Auto-Resize Textarea
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+            checkInput();
+        }
+
+        function checkInput() {
+            sendBtnEl.disabled = userInputEl.value.trim() === '';
+        }
+
+        // Keydown Handler (Enter to send, Shift+Enter for newline)
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (userInputEl.value.trim() !== '') {
+                    document.getElementById('chat-form').dispatchEvent(new Event('submit', { cancelable: true }));
+                }
+            }
+        }
+
+        // Toggle Sidebar on Mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        // Scroll to bottom helper
+        function scrollToBottom() {
+            const container = document.getElementById('chat-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // Run Init
+        init();
+    </script>
+</body>
+</html>
